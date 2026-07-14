@@ -29,6 +29,7 @@ services:
       - key: VITE_API_URL
         fromService:
           name: ai-native-api
+          type: web
           property: host
       - key: NODE_VERSION
         value: "18"
