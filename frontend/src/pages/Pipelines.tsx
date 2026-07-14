@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Play, Trash2, Settings, X, Clock } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 interface Pipeline {
   id: number;
@@ -43,8 +44,8 @@ export default function Pipelines() {
     setLoading(true);
     try {
       const [pRes, dRes] = await Promise.all([
-        fetch('/api/v1/pipelines?limit=1000'),
-        fetch('/api/v1/datasets?limit=1000'),
+        apiFetch('/api/v1/pipelines?limit=1000'),
+        apiFetch('/api/v1/datasets?limit=1000'),
       ]);
       if (pRes.ok) setPipelines(await pRes.json());
       if (dRes.ok) setDatasets(await dRes.json());
@@ -69,7 +70,7 @@ export default function Pipelines() {
       schedule: newSchedule || null,
       dataset_id: newDatasetId || null,
     };
-    const res = await fetch('/api/v1/pipelines/', {
+    const res = await apiFetch('/api/v1/pipelines/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -86,7 +87,7 @@ export default function Pipelines() {
   const handleRun = async (id: number) => {
     setRunning(id);
     try {
-      const res = await fetch(`/api/v1/pipelines/${id}/run`, { method: 'POST' });
+      const res = await apiFetch(`/api/v1/pipelines/${id}/run`, { method: 'POST' });
       if (res.ok) {
         const result = await res.json();
         setRunResult({ pipelineId: id, result });
@@ -101,13 +102,13 @@ export default function Pipelines() {
   };
 
   const handleSchedule = async (id: number, freq: string) => {
-    await fetch(`/api/v1/pipelines/${id}/schedule?frequency=${freq}`, { method: 'POST' });
+    await apiFetch(`/api/v1/pipelines/${id}/schedule?frequency=${freq}`, { method: 'POST' });
     setPipelines((prev) => prev.map((p) => (p.id === id ? { ...p, schedule: freq } : p)));
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this pipeline?')) return;
-    await fetch(`/api/v1/pipelines/${id}`, { method: 'DELETE' });
+    await apiFetch(`/api/v1/pipelines/${id}`, { method: 'DELETE' });
     setPipelines((prev) => prev.filter((p) => p.id !== id));
   };
 

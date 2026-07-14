@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Brain, TrendingUp, Target, Sparkles, Database } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 interface Dataset {
   id: number;
@@ -31,7 +32,7 @@ export default function Analytics() {
   const [context, setContext] = useState('');
 
   useEffect(() => {
-    fetch('/api/v1/datasets?limit=1000')
+    apiFetch('/api/v1/datasets?limit=1000')
       .then((r) => r.json())
       .then(setDatasets)
       .catch(() => {});
@@ -54,7 +55,7 @@ export default function Analytics() {
       let res: Response;
       switch (analysisType) {
         case 'analyze':
-          res = await fetch(`/api/v1/analytics/analyze/${selectedDataset}`, {
+          res = await apiFetch(`/api/v1/analytics/analyze/${selectedDataset}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ context: context || null }),
@@ -62,14 +63,14 @@ export default function Analytics() {
           break;
         case 'predict':
           if (!targetColumn) { setError('Target column is required'); setLoading(false); return; }
-          res = await fetch(`/api/v1/analytics/predict/${selectedDataset}?target_column=${encodeURIComponent(targetColumn)}&task_type=auto`, { method: 'POST' });
+          res = await apiFetch(`/api/v1/analytics/predict/${selectedDataset}?target_column=${encodeURIComponent(targetColumn)}&task_type=auto`, { method: 'POST' });
           break;
         case 'forecast':
           if (!dateColumn || !valueColumn) { setError('Date and value columns are required'); setLoading(false); return; }
-          res = await fetch(`/api/v1/analytics/forecast/${selectedDataset}?date_column=${encodeURIComponent(dateColumn)}&value_column=${encodeURIComponent(valueColumn)}&periods=${periods}`, { method: 'POST' });
+          res = await apiFetch(`/api/v1/analytics/forecast/${selectedDataset}?date_column=${encodeURIComponent(dateColumn)}&value_column=${encodeURIComponent(valueColumn)}&periods=${periods}`, { method: 'POST' });
           break;
         case 'enrich':
-          res = await fetch(`/api/v1/analytics/enrich/${selectedDataset}`, { method: 'POST' });
+          res = await apiFetch(`/api/v1/analytics/enrich/${selectedDataset}`, { method: 'POST' });
           break;
         default:
           setLoading(false);

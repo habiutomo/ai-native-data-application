@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Trash2, BarChart3, Eye, X } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 interface Dataset {
   id: number;
@@ -36,7 +37,7 @@ export default function Datasets() {
   const loadDatasets = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/datasets?limit=1000');
+      const res = await apiFetch('/api/v1/datasets?limit=1000');
       if (res.ok) setDatasets(await res.json());
     } catch { /* ignore */ }
     setLoading(false);
@@ -51,7 +52,7 @@ export default function Datasets() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await fetch('/api/v1/datasets/upload', { method: 'POST', body: formData });
+      const res = await apiFetch('/api/v1/datasets/upload', { method: 'POST', body: formData });
       if (res.ok) {
         const newDataset = await res.json();
         setDatasets((prev) => [newDataset, ...prev]);
@@ -66,19 +67,19 @@ export default function Datasets() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this dataset?')) return;
-    const res = await fetch(`/api/v1/datasets/${id}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/v1/datasets/${id}`, { method: 'DELETE' });
     if (res.ok) setDatasets((prev) => prev.filter((d) => d.id !== id));
   };
 
   const handlePreview = async (dataset: Dataset) => {
-    const res = await fetch(`/api/v1/datasets/${dataset.id}/preview?rows=20`);
+    const res = await apiFetch(`/api/v1/datasets/${dataset.id}/preview?rows=20`);
     if (res.ok) setPreview({ dataset, data: await res.json() });
   };
 
   const handleAnalyze = async (dataset: Dataset) => {
     setAnalyzing(dataset.id);
     try {
-      const res = await fetch(`/api/v1/datasets/${dataset.id}/analyze`, { method: 'POST' });
+      const res = await apiFetch(`/api/v1/datasets/${dataset.id}/analyze`, { method: 'POST' });
       if (res.ok) setAnalysis({ dataset, result: await res.json() });
     } catch { /* ignore */ }
     setAnalyzing(null);

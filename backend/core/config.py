@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # Database
-    DATABASE_URL: str = "mysql+pymysql://root@localhost:3306/ai_native_db"
+    DATABASE_URL: str = "postgresql://localhost:5432/ai_native_db"
     DATABASE_ECHO: bool = False
     
     # Redis
@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
     CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:5173"]
+    
+    @property
+    def cors_origins_list(self) -> list:
+        """Parse CORS_ORIGINS from env (comma-separated string) or use default list"""
+        import os
+        env_origins = os.getenv("CORS_ORIGINS")
+        if env_origins:
+            return [origin.strip() for origin in env_origins.split(",")]
+        return self.CORS_ORIGINS
     
     # Pipeline
     PIPELINE_WORKERS: int = 4

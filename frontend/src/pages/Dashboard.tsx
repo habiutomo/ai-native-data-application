@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Database, GitBranch, BarChart3, Activity, RefreshCw } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 interface DbStats {
   total_tables: number;
@@ -16,9 +17,9 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const [dbRes, dsRes, plRes] = await Promise.all([
-        fetch('/api/v1/database/stats'),
-        fetch('/api/v1/datasets?limit=1000'),
-        fetch('/api/v1/pipelines?limit=1000'),
+        apiFetch('/api/v1/database/stats'),
+        apiFetch('/api/v1/datasets?limit=1000'),
+        apiFetch('/api/v1/pipelines?limit=1000'),
       ]);
       if (dbRes.ok) setStats(await dbRes.json());
       if (dsRes.ok) setDatasetCount((await dsRes.json()).length);

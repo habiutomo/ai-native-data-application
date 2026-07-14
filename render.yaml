@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: ai-native-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-native-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: ai-native-redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: ""
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+
+  - type: static_site
+    name: ai-native-frontend
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: ./frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: ai-native-api
+          property: host
+
+  - type: postgresql
+    name: ai-native-db
+    plan: free
+    databaseName: ai_native_db
+
+  - type: redis
+    name: ai-native-redis
+    plan: free
+    ipAllowList: []
