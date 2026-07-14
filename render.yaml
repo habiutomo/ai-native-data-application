@@ -24,19 +24,18 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.0"
 
-  - type: static_site
+  - type: web
     name: ai-native-frontend
+    runtime: node
     buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: ./frontend/dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    startCommand: cd frontend && npx serve -s dist
     envVars:
       - key: VITE_API_URL
         fromService:
           name: ai-native-api
           property: host
+      - key: NODE_VERSION
+        value: "18"
 
   - type: postgresql
     name: ai-native-db
