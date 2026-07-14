@@ -5,13 +5,13 @@ from sqlalchemy.orm import Session
 from loguru import logger
 
 from backend.core.config import settings
-from backend.ai.openai_client import OpenAIClient
+from backend.ai.ollama_client import OllamaClient
 
 class DatabaseManager:
     def __init__(self):
         self.engine = create_engine(settings.DATABASE_URL)
         self.inspector = inspect(self.engine)
-        self.openai_client = OpenAIClient()
+        self.ollama_client = OllamaClient()
     
     async def execute_query(self, query: str, params: Optional[Dict] = None) -> pd.DataFrame:
         try:
@@ -118,6 +118,6 @@ Existing Indexes: {info['indexes']}
 
 Provide index suggestions with reasoning."""
         
-        response = await self.openai_client.generate(prompt)
+        response = await self.ollama_client.generate(prompt)
         
         return {"table": table_name, "suggestions": response}

@@ -1,12 +1,12 @@
 from typing import Dict, List, Any, Optional
 from loguru import logger
 
-from backend.ai.openai_client import OpenAIClient
+from backend.ai.ollama_client import OllamaClient
 from backend.core.database import get_db_context
 
 class QueryOptimizer:
     def __init__(self):
-        self.openai_client = OpenAIClient()
+        self.ollama_client = OllamaClient()
         self.query_history: List[Dict[str, Any]] = []
     
     async def analyze_query(self, query: str) -> Dict[str, Any]:
@@ -24,7 +24,7 @@ Provide:
 4. Index recommendations
 """
         
-        analysis = await self.openai_client.generate(prompt)
+        analysis = await self.ollama_client.generate(prompt)
         
         result = {
             "original_query": query,
@@ -50,7 +50,7 @@ Provide:
 3. Expected performance improvement
 """
         
-        optimized = await self.openai_client.generate(prompt)
+        optimized = await self.ollama_client.generate(prompt)
         
         return {
             "original": query,
@@ -76,7 +76,7 @@ Provide a clear explanation of:
 4. Potential bottlenecks
 """
                 
-                explanation = await self.openai_client.generate(prompt)
+                explanation = await self.ollama_client.generate(prompt)
                 
                 return {
                     "query": query,
@@ -100,7 +100,7 @@ Provide index suggestions with:
 3. Reasoning for the suggestion
 """
         
-        suggestions = await self.openai_client.generate(prompt)
+        suggestions = await self.ollama_client.generate(prompt)
         
         return {"suggestions": suggestions}
     

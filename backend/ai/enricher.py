@@ -2,11 +2,11 @@ import pandas as pd
 from typing import Dict, List, Any, Optional, Callable
 from loguru import logger
 
-from backend.ai.openai_client import OpenAIClient
+from backend.ai.ollama_client import OllamaClient
 
 class DataEnricher:
     def __init__(self):
-        self.openai_client = OpenAIClient()
+        self.ollama_client = OllamaClient()
         self.enrichment_rules: Dict[str, Callable] = {}
     
     async def enrich(
@@ -118,7 +118,7 @@ class DataEnricher:
             data[f'{column}_category'] = data[column].map(categories)
         else:
             prompt = f"Generate categories for the following unique values:\n{data[column].unique()[:20].tolist()}"
-            response = await self.openai_client.generate(prompt)
+            response = await self.ollama_client.generate(prompt)
             
             try:
                 import json

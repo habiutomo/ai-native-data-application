@@ -4,7 +4,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from loguru import logger
 
-from backend.ai.openai_client import OpenAIClient
+from backend.ai.ollama_client import OllamaClient
 
 @dataclass
 class AnalysisResult:
@@ -16,7 +16,7 @@ class AnalysisResult:
 
 class DataAnalyzer:
     def __init__(self):
-        self.openai_client = OpenAIClient()
+        self.ollama_client = OllamaClient()
     
     async def analyze(self, data: pd.DataFrame, context: Optional[str] = None) -> AnalysisResult:
         logger.info(f"Starting analysis on dataframe with shape {data.shape}")
@@ -25,7 +25,7 @@ class DataAnalyzer:
         anomalies = self._detect_anomalies(data)
         
         prompt = self._build_analysis_prompt(data, statistics, anomalies, context)
-        ai_analysis = await self.openai_client.generate(prompt)
+        ai_analysis = await self.ollama_client.generate(prompt)
         
         summary = self._extract_summary(ai_analysis)
         insights = self._extract_insights(ai_analysis)

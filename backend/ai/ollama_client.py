@@ -1,13 +1,13 @@
-from openai import AsyncOpenAI
+import httpx
 from typing import Optional
 from loguru import logger
 
 from backend.core.config import settings
 
-class OpenAIClient:
+class OllamaClient:
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self.model = settings.OPENAI_MODEL
+        self.base_url = settings.OLLAMA_BASE_URL
+        self.model = settings.OLLAMA_MODEL
     
     async def generate(
         self, 
@@ -29,17 +29,25 @@ class OpenAIClient:
             
             messages.append({"role": "user", "content": prompt})
             
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature
-            )
-            
-            return response.choices[0].message.content
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/chat",
+                    json={
+                        "model": self.model,
+                        "messages": messages,
+                        "stream": False,
+                        "options": {
+                            "temperature": temperature,
+                            "num_predict": max_tokens
+                        }
+                    }
+                )
+                response.raise_for_status()
+                result = response.json()
+                return result["message"]["content"]
             
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            logger.error(f"Ollama API error: {e}")
             raise
     
     async def analyze_code(self, code: str) -> str:

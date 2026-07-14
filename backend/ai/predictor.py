@@ -6,11 +6,11 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
 from loguru import logger
 
-from backend.ai.openai_client import OpenAIClient
+from backend.ai.ollama_client import OllamaClient
 
 class DataPredictor:
     def __init__(self):
-        self.openai_client = OpenAIClient()
+        self.ollama_client = OllamaClient()
         self.models: Dict[str, Any] = {}
     
     async def predict(
@@ -48,7 +48,7 @@ class DataPredictor:
         prompt = self._build_prediction_prompt(
             task_type, target_column, feature_importance, metric, metric_name
         )
-        ai_insights = await self.openai_client.generate(prompt)
+        ai_insights = await self.ollama_client.generate(prompt)
         
         self.models[target_column] = model
         
@@ -114,7 +114,7 @@ Range: {predictions.min():.2f} to {predictions.max():.2f}
 
 Provide insights about the forecast pattern and any recommendations."""
         
-        ai_insights = await self.openai_client.generate(prompt)
+        ai_insights = await self.ollama_client.generate(prompt)
         
         return {
             "forecast": forecast_df.to_dict('records'),
