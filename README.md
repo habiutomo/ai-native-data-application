@@ -12,7 +12,7 @@ A comprehensive data application powered by AI capabilities, featuring analytics
 ## Tech Stack
 
 - **Backend**: Python, FastAPI
-- **AI/ML**: OpenAI API, scikit-learn, pandas
+- **AI/ML**: Ollama (local LLM), scikit-learn, pandas
 - **Database**: PostgreSQL (configurable)
 - **Frontend**: React, TailwindCSS, Recharts
 - **Task Queue**: Celery, Redis
@@ -44,7 +44,8 @@ ai-native-data-app/
 
 ```env
 DATABASE_URL=postgresql://user:password@localhost/dbname
-OPENAI_API_KEY=your_api_key
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
 REDIS_URL=redis://localhost:6379
 SECRET_KEY=your_secret_key
 ```
