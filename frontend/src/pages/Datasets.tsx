@@ -1,28 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Trash2, BarChart3, Eye, X } from 'lucide-react';
-import { apiFetch } from '../lib/api';
-
-interface Dataset {
-  id: number;
-  name: string;
-  filename: string;
-  row_count: number;
-  column_count: number;
-  created_at: string;
-}
+import { getDatasets, deleteDataset, type Dataset } from '../lib/db';
+import { uploadDataset, getDatasetPreview } from '../lib/dataService';
+import { analyzeDataset, type AnalysisResult } from '../lib/analytics';
 
 interface PreviewData {
   columns: string[];
   data: Record<string, unknown>[];
   shape: [number, number];
-}
-
-interface AnalysisResult {
-  summary: string;
-  insights: string[];
-  statistics: Record<string, unknown>;
-  visualizations: Record<string, unknown>;
-  anomalies: Record<string, unknown>;
 }
 
 export default function Datasets() {
@@ -37,8 +22,7 @@ export default function Datasets() {
   const loadDatasets = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/v1/datasets?limit=1000');
-      if (res.ok) setDatasets(await res.json());
+      setDatasets(await getDatasets());
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -49,14 +33,9 @@ export default function Datasets() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    const formData = new FormData();
-    formData.append('file', file);
     try {
-      const res = await apiFetch('/api/v1/datasets/upload', { method: 'POST', body: formData });
-      if (res.ok) {
-        const newDataset = await res.json();
-        setDatasets((prev) => [newDataset, ...prev]);
-      }
+      const newDataset = await uploadDataset(file);
+      setDatasets((prev) => [newDataset, ...prev]);
     } catch (err) {
       console.error('Upload failed:', err);
     } finally {
@@ -67,20 +46,22 @@ export default function Datasets() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this dataset?')) return;
-    const res = await apiFetch(`/api/v1/datasets/${id}`, { method: 'DELETE' });
-    if (res.ok) setDatasets((prev) => prev.filter((d) => d.id !== id));
+    await deleteDataset(id);
+    setDatasets((prev) => prev.filter((d) => d.id !== id));
   };
 
   const handlePreview = async (dataset: Dataset) => {
-    const res = await apiFetch(`/api/v1/datasets/${dataset.id}/preview?rows=20`);
-    if (res.ok) setPreview({ dataset, data: await res.json() });
+    if (!dataset.id) return;
+    const data = await getDatasetPreview(dataset.id, 20);
+    setPreview({ dataset, data });
   };
 
   const handleAnalyze = async (dataset: Dataset) => {
+    if (!dataset.id) return;
     setAnalyzing(dataset.id);
     try {
-      const res = await apiFetch(`/api/v1/datasets/${dataset.id}/analyze`, { method: 'POST' });
-      if (res.ok) setAnalysis({ dataset, result: await res.json() });
+      const result = await analyzeDataset(dataset.id);
+      setAnalysis({ dataset, result });
     } catch { /* ignore */ }
     setAnalyzing(null);
   };
@@ -124,15 +105,15 @@ export default function Datasets() {
               <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-gray-400">Rows</p>
-                  <p className="text-white">{dataset.row_count?.toLocaleString()}</p>
+                  <p className="text-white">{dataset.rowCount?.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Columns</p>
-                  <p className="text-white">{dataset.column_count}</p>
+                  <p className="text-white">{dataset.columnCount}</p>
                 </div>
               </div>
               <p className="text-gray-500 text-xs mt-2">
-                {new Date(dataset.created_at).toLocaleDateString()}
+                {new Date(dataset.createdAt).toLocaleDateString()}
               </p>
               <div className="mt-4 flex space-x-2">
                 <button
@@ -150,7 +131,7 @@ export default function Datasets() {
                   {analyzing === dataset.id ? '...' : 'Analyze'}
                 </button>
                 <button
-                  onClick={() => handleDelete(dataset.id)}
+                  onClick={() => handleDelete(dataset.id!)}
                   className="px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -168,7 +149,6 @@ export default function Datasets() {
         </div>
       )}
 
-      {/* Preview Modal */}
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setPreview(null)}>
           <div className="bg-gray-800 rounded-lg border border-gray-700 w-full max-w-5xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -200,7 +180,6 @@ export default function Datasets() {
         </div>
       )}
 
-      {/* Analysis Modal */}
       {analysis && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setAnalysis(null)}>
           <div className="bg-gray-800 rounded-lg border border-gray-700 w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>

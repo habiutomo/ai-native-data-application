@@ -1,54 +1,74 @@
 # AI-Native Data Application
 
-A comprehensive data application powered by AI capabilities, featuring analytics dashboards, database management, data pipelines, and intelligent data processing.
+A comprehensive data application that runs entirely in your browser. No server required - deploy anywhere as a static site.
 
 ## Features
 
-- **AI Analytics Dashboard** - Real-time data visualization with AI-generated insights
-- **Smart Database Manager** - AI-optimized queries and schema management
-- **Intelligent Data Pipeline** - Automated ETL with AI transformation
-- **AI Data Processing** - Smart data cleaning, enrichment, and analysis
+- **Data Analytics** - Statistical analysis, anomaly detection, correlation analysis
+- **Data Pipelines** - Create and run ETL pipelines with transformations
+- **ML Predictions** - RandomForest classification and regression models
+- **Time Series Forecasting** - Predict future values from historical data
+- **File Upload** - Support for CSV, Excel, and JSON files
+- **Client-Side Storage** - Data persists in your browser using IndexedDB
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI
-- **AI/ML**: Ollama (local LLM), scikit-learn, pandas
-- **Database**: PostgreSQL (configurable)
-- **Frontend**: React, TailwindCSS, Recharts
-- **Task Queue**: Celery, Redis
+- **Frontend**: React 18, TypeScript, Vite, TailwindCSS
+- **Data Processing**: PapaParse (CSV), SheetJS (Excel), danfo.js
+- **ML/AI**: ml-random-forest (client-side RandomForest)
+- **Storage**: IndexedDB via Dexie.js
+- **Charts**: Recharts
 
 ## Project Structure
 
 ```
-ai-native-data-app/
-├── backend/
-│   ├── api/              # FastAPI routes
-│   ├── core/             # Configuration and utilities
-│   ├── ai/               # AI/ML modules
-│   ├── pipeline/         # Data pipeline
-│   ├── database/         # Database management
-│   └── models/           # Data models
-├── frontend/             # React application
-├── docker/               # Docker configurations
-└── docs/                 # Documentation
+ai-native-data-application/
+├── frontend/
+│   ├── src/
+│   │   ├── lib/
+│   │   │   ├── db.ts           # IndexedDB wrapper
+│   │   │   ├── dataService.ts  # File parsing & data operations
+│   │   │   ├── analytics.ts    # Statistics & analysis
+│   │   │   └── ml.ts           # ML models (RandomForest)
+│   │   ├── pages/
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── Datasets.tsx
+│   │   │   ├── Pipelines.tsx
+│   │   │   └── Analytics.tsx
+│   │   └── App.tsx
+│   ├── package.json
+│   └── vite.config.ts
+└── .github/workflows/
+    └── deploy.yml             # GitHub Actions auto-deploy
 ```
 
 ## Quick Start
 
 1. Clone the repository
-2. Install dependencies: `pip install -r requirements.txt`
-3. Set up environment variables in `.env`
-4. Run the application: `uvicorn backend.main:app --reload`
+2. Install dependencies: `cd frontend && npm install`
+3. Run development server: `npm run dev`
+4. Open http://localhost:3000
 
-## Environment Variables
+## Deploy to GitHub Pages
 
-```env
-DATABASE_URL=postgresql://user:password@localhost/dbname
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama3
-REDIS_URL=redis://localhost:6379
-SECRET_KEY=your_secret_key
+1. Push to GitHub
+2. Enable GitHub Pages in repository settings (Source: GitHub Actions)
+3. Every push to `main` will auto-deploy
+
+Or deploy manually:
+```bash
+cd frontend
+npm run build
+# Upload dist/ folder to any static hosting
 ```
+
+## How It Works
+
+- All data processing happens in your browser
+- Files are parsed client-side (no server upload)
+- Data stored in IndexedDB (persists across sessions)
+- ML models run using JavaScript (no Python required)
+- No backend server needed
 
 ## License
 

@@ -1,30 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Brain, TrendingUp, Target, Sparkles, Database } from 'lucide-react';
-import { apiFetch } from '../lib/api';
-
-interface Dataset {
-  id: number;
-  name: string;
-  filename: string;
-}
-
-interface AnalysisResult {
-  summary: string;
-  insights: string[];
-  statistics: Record<string, unknown>;
-  visualizations: Record<string, unknown>;
-  anomalies: Record<string, unknown>;
-}
+import { getDatasets, type Dataset } from '../lib/db';
+import { analyzeDataset, enrichDataset, type AnalysisResult } from '../lib/analytics';
+import { predict, forecast, type PredictionResult } from '../lib/ml';
 
 export default function Analytics() {
   const [datasets, setDatasets] = useState<Dataset[]>([]);
   const [selectedDataset, setSelectedDataset] = useState<number | null>(null);
   const [analysisType, setAnalysisType] = useState<string>('analyze');
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [result, setResult] = useState<AnalysisResult | PredictionResult | { success: boolean; message: string; enrichedRows: number } | { forecast: number[]; dates: string[]; insights: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // extra params
   const [targetColumn, setTargetColumn] = useState('');
   const [dateColumn, setDateColumn] = useState('');
   const [valueColumn, setValueColumn] = useState('');
@@ -32,14 +19,11 @@ export default function Analytics() {
   const [context, setContext] = useState('');
 
   useEffect(() => {
-    apiFetch('/api/v1/datasets?limit=1000')
-      .then((r) => r.json())
-      .then(setDatasets)
-      .catch(() => {});
+    getDatasets().then(setDatasets).catch(() => {});
   }, []);
 
   const analysisTypes = [
-    { id: 'analyze', name: 'AI Analysis', icon: Brain, description: 'Get AI-powered insights' },
+    { id: 'analyze', name: 'AI Analysis', icon: Brain, description: 'Get statistical insights' },
     { id: 'predict', name: 'Prediction', icon: TrendingUp, description: 'Build predictive models' },
     { id: 'forecast', name: 'Forecasting', icon: Target, description: 'Time series forecasting' },
     { id: 'enrich', name: 'Data Enrichment', icon: Sparkles, description: 'Enhance your data' },
@@ -52,56 +36,44 @@ export default function Analytics() {
     setResult(null);
 
     try {
-      let res: Response;
       switch (analysisType) {
         case 'analyze':
-          res = await apiFetch(`/api/v1/analytics/analyze/${selectedDataset}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ context: context || null }),
-          });
+          setResult(await analyzeDataset(selectedDataset, context || undefined));
           break;
         case 'predict':
           if (!targetColumn) { setError('Target column is required'); setLoading(false); return; }
-          res = await apiFetch(`/api/v1/analytics/predict/${selectedDataset}?target_column=${encodeURIComponent(targetColumn)}&task_type=auto`, { method: 'POST' });
+          setResult(await predict(selectedDataset, targetColumn));
           break;
         case 'forecast':
           if (!dateColumn || !valueColumn) { setError('Date and value columns are required'); setLoading(false); return; }
-          res = await apiFetch(`/api/v1/analytics/forecast/${selectedDataset}?date_column=${encodeURIComponent(dateColumn)}&value_column=${encodeURIComponent(valueColumn)}&periods=${periods}`, { method: 'POST' });
+          setResult(await forecast(selectedDataset, dateColumn, valueColumn, periods));
           break;
         case 'enrich':
-          res = await apiFetch(`/api/v1/analytics/enrich/${selectedDataset}`, { method: 'POST' });
+          setResult(await enrichDataset(selectedDataset));
           break;
         default:
           setLoading(false);
           return;
       }
-      if (res.ok) {
-        setResult(await res.json());
-      } else {
-        const err = await res.json();
-        setError(err.detail || 'Analysis failed');
-      }
-    } catch {
-      setError('Network error');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed');
     }
     setLoading(false);
   };
 
-  const renderResult = (data: Record<string, unknown>) => {
-    if (data.summary) {
-      const a = data as unknown as AnalysisResult;
+  const renderResult = (data: AnalysisResult | PredictionResult | { success: boolean; message: string; enrichedRows: number } | { forecast: number[]; dates: string[]; insights: string[] }) => {
+    if ('summary' in data) {
       return (
         <>
           <div className="mb-6">
             <h3 className="text-gray-400 text-sm mb-2">Summary</h3>
-            <p className="text-white">{a.summary}</p>
+            <p className="text-white">{data.summary}</p>
           </div>
-          {a.insights && a.insights.length > 0 && (
+          {data.insights && data.insights.length > 0 && (
             <div className="mb-6">
               <h3 className="text-gray-400 text-sm mb-2">Key Insights</h3>
               <ul className="space-y-2">
-                {a.insights.map((insight, idx) => (
+                {data.insights.map((insight, idx) => (
                   <li key={idx} className="flex items-start text-white">
                     <span className="text-blue-500 mr-2">&#8226;</span> {insight}
                   </li>
@@ -109,10 +81,10 @@ export default function Analytics() {
               </ul>
             </div>
           )}
-          {a.statistics && (
+          {'statistics' in data && data.statistics && (
             <div>
               <h3 className="text-gray-400 text-sm mb-2">Statistics</h3>
-              <pre className="bg-gray-900 rounded p-4 text-gray-300 text-sm overflow-auto">{JSON.stringify(a.statistics, null, 2)}</pre>
+              <pre className="bg-gray-900 rounded p-4 text-gray-300 text-sm overflow-auto">{JSON.stringify(data.statistics, null, 2)}</pre>
             </div>
           )}
         </>
@@ -127,11 +99,10 @@ export default function Analytics() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white mb-6">AI Analytics</h1>
+      <h1 className="text-2xl font-bold text-white mb-6">Analytics</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
-          {/* Dataset selector */}
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center">
               <Database className="w-5 h-5 mr-2" /> Dataset
@@ -148,7 +119,6 @@ export default function Analytics() {
             </select>
           </div>
 
-          {/* Analysis type */}
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h2 className="text-lg font-semibold text-white mb-4">Analysis Type</h2>
             <div className="space-y-3">
@@ -172,7 +142,6 @@ export default function Analytics() {
             </div>
           </div>
 
-          {/* Extra params */}
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h2 className="text-lg font-semibold text-white mb-4">Parameters</h2>
             {analysisType === 'analyze' && (
@@ -180,7 +149,7 @@ export default function Analytics() {
                 <label className="block text-gray-400 text-sm mb-1">Context (optional)</label>
                 <textarea value={context} onChange={(e) => setContext(e.target.value)} rows={2}
                   className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-                  placeholder="Additional context for the AI..." />
+                  placeholder="Additional context..." />
               </div>
             )}
             {analysisType === 'predict' && (
@@ -213,7 +182,7 @@ export default function Analytics() {
               </div>
             )}
             {analysisType === 'enrich' && (
-              <p className="text-gray-500 text-sm">Will automatically enrich the dataset using AI.</p>
+              <p className="text-gray-500 text-sm">Will automatically fill missing values and extract features.</p>
             )}
           </div>
 
@@ -227,7 +196,6 @@ export default function Analytics() {
           {error && <p className="text-red-400 text-sm">{error}</p>}
         </div>
 
-        {/* Results */}
         <div className="lg:col-span-2">
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 min-h-[500px]">
             {result ? (

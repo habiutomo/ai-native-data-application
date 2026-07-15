@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { LayoutDashboard, Database, GitBranch, BarChart3 } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
 import Datasets from './pages/Datasets';

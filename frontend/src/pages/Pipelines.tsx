@@ -1,23 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Play, Trash2, Settings, X, Clock } from 'lucide-react';
-import { apiFetch } from '../lib/api';
-
-interface Pipeline {
-  id: number;
-  name: string;
-  description: string | null;
-  status: string;
-  schedule: string | null;
-  last_run: string | null;
-  enabled: boolean;
-  dataset_id: number | null;
-  config: Record<string, unknown>;
-}
-
-interface Dataset {
-  id: number;
-  name: string;
-}
+import { getPipelines, getDatasets, addPipeline, deletePipeline, type Pipeline, type Dataset } from '../lib/db';
+import { runPipeline } from '../lib/dataService';
 
 export default function Pipelines() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -43,12 +27,9 @@ export default function Pipelines() {
   const load = async () => {
     setLoading(true);
     try {
-      const [pRes, dRes] = await Promise.all([
-        apiFetch('/api/v1/pipelines?limit=1000'),
-        apiFetch('/api/v1/datasets?limit=1000'),
-      ]);
-      if (pRes.ok) setPipelines(await pRes.json());
-      if (dRes.ok) setDatasets(await dRes.json());
+      const [p, d] = await Promise.all([getPipelines(), getDatasets()]);
+      setPipelines(p);
+      setDatasets(d);
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -63,52 +44,40 @@ export default function Pipelines() {
       alert('Invalid JSON config');
       return;
     }
-    const body = {
+    const pipeline: Omit<Pipeline, 'id'> = {
       name: newName,
       description: newDesc || null,
       config,
       schedule: newSchedule || null,
-      dataset_id: newDatasetId || null,
+      datasetId: newDatasetId || null,
+      status: 'idle',
+      lastRun: null,
+      enabled: true,
     };
-    const res = await apiFetch('/api/v1/pipelines/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      const created = await res.json();
-      setPipelines((prev) => [created, ...prev]);
-      setShowCreateModal(false);
-      setNewName(''); setNewDesc(''); setNewDatasetId(''); setNewSchedule('');
-      setNewConfig('{\n  "transformations": []\n}');
-    }
+    const id = await addPipeline(pipeline);
+    setPipelines((prev) => [{ ...pipeline, id }, ...prev]);
+    setShowCreateModal(false);
+    setNewName(''); setNewDesc(''); setNewDatasetId(''); setNewSchedule('');
+    setNewConfig('{\n  "transformations": []\n}');
   };
 
   const handleRun = async (id: number) => {
     setRunning(id);
     try {
-      const res = await apiFetch(`/api/v1/pipelines/${id}/run`, { method: 'POST' });
-      if (res.ok) {
-        const result = await res.json();
-        setRunResult({ pipelineId: id, result });
-        setPipelines((prev) =>
-          prev.map((p) =>
-            p.id === id ? { ...p, status: result.success ? 'completed' : 'failed', last_run: new Date().toISOString() } : p
-          )
-        );
-      }
+      const result = await runPipeline(id);
+      setRunResult({ pipelineId: id, result: result as unknown as Record<string, unknown> });
+      setPipelines((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, status: result.success ? 'completed' : 'failed', lastRun: new Date().toISOString() } : p
+        )
+      );
     } catch { /* ignore */ }
     setRunning(null);
   };
 
-  const handleSchedule = async (id: number, freq: string) => {
-    await apiFetch(`/api/v1/pipelines/${id}/schedule?frequency=${freq}`, { method: 'POST' });
-    setPipelines((prev) => prev.map((p) => (p.id === id ? { ...p, schedule: freq } : p)));
-  };
-
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this pipeline?')) return;
-    await apiFetch(`/api/v1/pipelines/${id}`, { method: 'DELETE' });
+    await deletePipeline(id);
     setPipelines((prev) => prev.filter((p) => p.id !== id));
   };
 
@@ -145,39 +114,20 @@ export default function Pipelines() {
                 </div>
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={() => handleRun(pipeline.id)}
+                    onClick={() => handleRun(pipeline.id!)}
                     disabled={running === pipeline.id}
                     className="p-2 text-gray-400 hover:text-green-500 disabled:opacity-50"
                     title="Run"
                   >
                     <Play className="w-5 h-5" />
                   </button>
-                  <div className="relative group">
-                    <button className="p-2 text-gray-400 hover:text-blue-500" title="Schedule">
-                      <Settings className="w-5 h-5" />
-                    </button>
-                    <div className="absolute right-0 top-full mt-1 bg-gray-700 rounded-lg border border-gray-600 py-1 hidden group-hover:block z-10 whitespace-nowrap">
-                      {['hourly', 'daily', 'weekly', 'monthly'].map((f) => (
-                        <button key={f} onClick={() => handleSchedule(pipeline.id, f)}
-                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-600 capitalize">
-                          {f}
-                        </button>
-                      ))}
-                      {pipeline.schedule && (
-                        <button onClick={() => handleSchedule(pipeline.id, '')}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-600">
-                          Remove schedule
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <button onClick={() => handleDelete(pipeline.id)} className="p-2 text-gray-400 hover:text-red-500" title="Delete">
+                  <button onClick={() => handleDelete(pipeline.id!)} className="p-2 text-gray-400 hover:text-red-500" title="Delete">
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
               </div>
-              {pipeline.last_run && (
-                <p className="text-gray-500 text-sm mt-3">Last run: {new Date(pipeline.last_run).toLocaleString()}</p>
+              {pipeline.lastRun && (
+                <p className="text-gray-500 text-sm mt-3">Last run: {new Date(pipeline.lastRun).toLocaleString()}</p>
               )}
             </div>
           ))}
@@ -191,7 +141,6 @@ export default function Pipelines() {
         </div>
       )}
 
-      {/* Run Result Modal */}
       {runResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setRunResult(null)}>
           <div className="bg-gray-800 rounded-lg border border-gray-700 w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
@@ -208,7 +157,6 @@ export default function Pipelines() {
         </div>
       )}
 
-      {/* Create Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowCreateModal(false)}>
           <div className="bg-gray-800 rounded-lg border border-gray-700 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
@@ -235,17 +183,6 @@ export default function Pipelines() {
                   className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
                   <option value="">None</option>
                   {datasets.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-1">Schedule</label>
-                <select value={newSchedule} onChange={(e) => setNewSchedule(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500">
-                  <option value="">Manual</option>
-                  <option value="hourly">Hourly</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
                 </select>
               </div>
               <div>
